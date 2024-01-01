@@ -7,6 +7,8 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 // 处理访问日志中间件
 const logger = require('morgan');
+// 链接数据库中间件
+const db = require('./middleware/connectSQL');
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
@@ -22,6 +24,12 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+  req.db = db;
+  next();
+});
+
 // 使用路由
 app.use(base_url + '/', indexRouter);
 app.use(base_url + '/user', usersRouter);
