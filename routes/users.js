@@ -1,10 +1,11 @@
 const jwt = require('jsonwebtoken');
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
+const verifyToken = require('../middleware/verifyToken');
 
 // 具体修改用户信息函数
 function addUserInfo(req, data) {
-  sql = 'INSERT INTO usersInfo (userId, userName, sex, avatar, birthday, region, label) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  sql = 'INSERT INTO usersInfo (userId, userName, sex, avatar, birthday, region, label, listLike) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
   const value = Object.values(data)
   req.db.query(sql, value, (err, results, fields) => {
     if (err) {
@@ -33,7 +34,7 @@ router.post('/register', function(req, res, next) {
       req.db.query(insertUserQuery, [userName, password], (err, insertResults) => {
         const userId = insertResults.insertId;
         // 创建 token
-        const token = jwt.sign({ userId, userName }, 'your-secret-key', { expiresIn: '1h' });
+        const token = jwt.sign({ userId, userName }, 'Tune-Ties', { expiresIn: '7d' });
 
         // 给新创建的用户加上默认用户信息
         const userInfo = {
@@ -43,7 +44,8 @@ router.post('/register', function(req, res, next) {
           avatar: `${req.protocol}://${req.get('host')}/public/images/defaultUser.png`,
           birthday: new Date('1990-01-01').getTime(),
           region: '',
-          label: ''
+          label: '',
+          listLike: ''
         }
         addUserInfo(req, userInfo)
         // 发送token
@@ -56,9 +58,29 @@ router.post('/register', function(req, res, next) {
 // 修改用户信息
 
 // 获取用户信息
-router.get('/userInfo', function(req, res, next) {
-  console.log(req.query.name)
-  res.send('give userInfo')
-})
+router.get('/userInfo', verifyToken, function(req, res, next) {
+  const userId = req.userId;
+  console.log(userId)
+  // 查询数据库以获取用户信息
+  const getUserInfoQuery = 'SELECT * FROM usersInfo WHERE userId = ?';
+
+  req.db.query(getUserInfoQuery, [userId], (err, results) => {
+    if (err) {
+      console.error('Error fetching user info:', err);
+      res.status(500).json({ state: 0, msg: 'Internal Server Error', data: null });
+    } else {
+      if (results.length > 0) {
+        // 用户信息存在，返回用户信息
+        const userInfo = results[0];
+        userInfo.label = userInfo.label? userInfo.label.split(',') : []
+        userInfo.listLike = userInfo.listLike? userInfo.listLike.split(',') : []
+        res.status(200).json({ state: 1, msg: '获取用户信息成功！', data: userInfo });
+      } else {
+        // 用户信息不存在
+        res.status(404).json({ state: 0, msg: '未找到该用户', data: null });
+      }
+    }
+  });
+});
 
 module.exports = router;

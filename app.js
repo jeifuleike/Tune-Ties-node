@@ -3,8 +3,6 @@
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
-// 处理cookie中间件
-const cookieParser = require('cookie-parser');
 // 处理访问日志中间件
 const logger = require('morgan');
 // 链接数据库中间件
@@ -18,10 +16,10 @@ const base_url = '/express/api'
 
 // 使用处理日志中间件
 app.use(logger('dev'));
-//处理cookie
-app.use(cookieParser());
+
 //静态资源托管中间件   连接两个路径
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/public/images', express.static(path.join(__dirname, 'public/images')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
