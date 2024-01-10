@@ -14,6 +14,7 @@ function verifyToken(req, res, next) {
           // 处理验证失败的逻辑，例如返回未授权的响应
           res.status(401).json({ error: 'Unauthorized' });
         } else {
+          console.log(decoded)
           // token 验证成功
           req.userId = decoded.userId;
           // 继续处理其他逻辑

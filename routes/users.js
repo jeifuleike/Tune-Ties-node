@@ -83,4 +83,33 @@ router.get('/userInfo', verifyToken, function(req, res, next) {
   });
 });
 
+// 登录
+router.post('/login', function(req, res, next) {
+  const userName = req.body.userName;
+  const password = req.body.password;
+
+  // 在用户列表中查找用户
+  const checkUserQuery = 'SELECT * FROM users WHERE userName = ?';
+
+  req.db.query(checkUserQuery, [userName], (err, results) => {
+    if (results.length > 0) {
+      // 用户存在，验证密码
+      const storedPassword = results[0].password;
+      if (password === storedPassword) {
+        console.log(results[0], 'res')
+        // 密码匹配，生成token
+        const userId = results[0].id;
+        const token = jwt.sign({ userId, userName }, 'Tune-Ties', { expiresIn: '7d' });
+
+        res.send({ state: 1, msg: '登录成功', data: { token } });
+      } else {
+        // 密码错误
+        res.status(402).json({ state: 0, msg: '密码错误！', data: null });
+      }
+    } else {
+      // 用户不存在
+      res.status(402).json({ state: 0, msg: '用户不存在！', data: null });
+    }
+  });
+});
 module.exports = router;
