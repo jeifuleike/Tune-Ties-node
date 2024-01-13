@@ -5,7 +5,7 @@ const verifyToken = require('../middleware/verifyToken');
 
 // 具体修改用户信息函数
 function addUserInfo(req, data) {
-  sql = 'INSERT INTO usersInfo (userId, userName, sex, avatar, birthday, region, label, listLike) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+  const sql = 'INSERT INTO usersInfo (userId, userName, sex, avatar, birthday, region, label, listLike) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
   const value = Object.values(data)
   req.db.query(sql, value, (err, results, fields) => {
     if (err) {
@@ -41,7 +41,7 @@ router.post('/register', function(req, res, next) {
           userId,
           userName,
           sex: 1,
-          avatar: `${req.protocol}://${req.get('host')}/public/images/defaultUser.png`,
+          avatar: '',
           birthday: new Date('1990-01-01').getTime(),
           region: '',
           label: '',
@@ -74,6 +74,12 @@ router.get('/userInfo', verifyToken, function(req, res, next) {
         const userInfo = results[0];
         userInfo.label = userInfo.label? userInfo.label.split(',') : []
         userInfo.listLike = userInfo.listLike? userInfo.listLike.split(',') : []
+        // 图片信息是否为空，为空传入默认图片，不为空拼接服务器头部
+        if (userInfo.avatar) {
+          userInfo.avatar = `${req.serverBaseUrl}/${userInfo.avatar}`
+        } else {
+          userInfo.avatar = `${req.serverBaseUrl}/public/images/userImage/defaultUser.png`
+        }
         res.status(200).json({ state: 1, msg: '获取用户信息成功！', data: userInfo });
       } else {
         // 用户信息不存在
