@@ -5,6 +5,7 @@ const db = mysql.createConnection({
   user: 'root',
   password: '123',
   database: 'tune_ties_sql',
+  charset: 'utf8mb4',
 });
 
 // 连接数据库

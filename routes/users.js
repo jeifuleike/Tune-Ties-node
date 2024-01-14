@@ -13,7 +13,6 @@ function addUserInfo(req, data) {
     } 
   })
 }
-
 // 注册
 router.post('/register', function(req, res, next) {
   const userName = req.body.userName;
@@ -60,7 +59,6 @@ router.post('/register', function(req, res, next) {
 // 获取用户信息
 router.get('/userInfo', verifyToken, function(req, res, next) {
   const userId = req.userId;
-  console.log(userId)
   // 查询数据库以获取用户信息
   const getUserInfoQuery = 'SELECT * FROM usersInfo WHERE userId = ?';
 
@@ -102,7 +100,6 @@ router.post('/login', function(req, res, next) {
       // 用户存在，验证密码
       const storedPassword = results[0].password;
       if (password === storedPassword) {
-        console.log(results[0], 'res')
         // 密码匹配，生成token
         const userId = results[0].id;
         const token = jwt.sign({ userId, userName }, 'Tune-Ties', { expiresIn: '7d' });
@@ -118,4 +115,39 @@ router.post('/login', function(req, res, next) {
     }
   });
 });
+
+// 用户修改个人信息
+router.post('/changeUserInfo', verifyToken, function(req, res, next) {
+  const userInfo = req.body;
+  const userId = req.userId;
+  // 构造 SQL 更新语句
+  let updateFields = '';
+  const updateValues = [];
+
+  // 遍历 userInfo 对象，构建 SET 子句
+  for (const key in userInfo) {
+    if (userInfo.hasOwnProperty(key)) {
+      updateFields += `${key} = ?, `;
+      updateValues.push(userInfo[key]);
+    }
+  }
+
+  // 去掉最后多余的逗号和空格
+  updateFields = updateFields.slice(0, -2);
+
+  // 构建完整的 SQL 更新语句
+  const sql = `UPDATE usersInfo SET ${updateFields} WHERE userId = ?`;
+  updateValues.push(userId);
+
+  // 执行 SQL 更新语句
+  req.db.query(sql, updateValues, (err, results, fields) => {
+    if (err) {
+      console.error('Error updating user info:', err);
+      res.status(500).json({ state: 0, msg: 'Internal Server Error', data: null });
+    } else {
+      res.status(200).json({ state: 1, msg: 'User info updated successfully', data: null });
+    }
+  });
+});
+
 module.exports = router;
