@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+const musicListen = require('../socket/musicListen')
 /**
  * Module dependencies.
  */
@@ -7,6 +7,7 @@
 var app = require('../app');
 var debug = require('debug')('tune:server');
 var http = require('http');
+const socketIO = require('socket.io');
 
 /**
  * Get port from environment and store in Express.
@@ -20,7 +21,17 @@ app.set('port', port);
  */
 
 var server = http.createServer(app);
+const io = socketIO(server, {
+  //解决跨域问题
+  cors:{
+    //允许的跨
+    origin:"*",
+    //允许的请求方式
+    methods:["GET","POST"]
+  }
+});
 
+musicListen(io)
 /**
  * Listen on provided port, on all network interfaces.
  */

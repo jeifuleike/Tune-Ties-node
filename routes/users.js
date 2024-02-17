@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const express = require('express');
 const router = express.Router();
 const verifyToken = require('../middleware/verifyToken');
+const { getUserInfo } = require('../middleware/userInfoSQL')
 
 // 具体修改用户信息函数
 function addUserInfo(req, data) {
@@ -10,36 +11,8 @@ function addUserInfo(req, data) {
   req.db.query(sql, value, (err, results, fields) => {
     if (err) {
       console.error('Error inserting data:', err);
-    } 
-  })
-}
-
-function getUserInfo(id, req, callback) {
-  const getUserInfoQuery = 'SELECT * FROM usersInfo WHERE userId = ?';
-  req.db.query(getUserInfoQuery, [id], (err, results) => {
-    if (err) {
-      console.error('Error fetching user info:', err);
-      callback(err, null);
-    } else {
-      if (results.length > 0) {
-        // 用户信息存在，返回用户信息
-        const userInfo = results[0];
-        userInfo.label = userInfo.label ? userInfo.label.split(',') : [];
-        userInfo.listLike = userInfo.listLike ? userInfo.listLike.split(',') : [];
-        // 图片信息是否为空，为空传入默认图片，不为空拼接服务器头部
-        if (userInfo.avatar) {
-          userInfo.avatar = `${req.serverBaseUrl}/${userInfo.avatar}`;
-        } else {
-          userInfo.avatar = `${req.serverBaseUrl}/public/images/userImage/defaultUser.png`;
-        }
-        console.log(userInfo, 'userInfo')
-        callback(null, userInfo);
-      } else {
-        // 用户信息不存在
-        callback(null, null);
-      }
     }
-  });
+  })
 }
 
 // 获取用户信息
@@ -48,7 +21,7 @@ router.get('/userInfo', verifyToken, function(req, res, next) {
   // 查询数据库以获取用户信息
   getUserInfo(userId, req, (err, userInfo) => {
     if (userInfo) {
-      res.status(200).json({ state: 1, msg: '获取用户信息成功！', data: userInfo });
+      res.status(200).json({ state: 1, msg: '获取用户信息成功！', data: userInfo[0] });
     } else {
       // 用户信息不存在
       res.status(404).json({ state: 0, msg: '未找到该用户', data: null });
@@ -92,6 +65,7 @@ router.post('/register', function(req, res, next) {
           listLike: ''
         }
         addUserInfo(req, userInfo)
+
         // 发送token
         res.send({ state: 1, msg: '注册成功', data: { token, userInfo } });
       });
@@ -116,7 +90,7 @@ router.post('/login', function(req, res, next) {
         const userId = results[0].id;
         const token = jwt.sign({ userId, userName }, 'Tune-Ties', { expiresIn: '7d' });
         getUserInfo(userId, req, (err, userInfo) => {
-          res.send({ state: 1, msg: '登录成功', data: { token, userInfo } });
+          res.send({ state: 1, msg: '登录成功', data: { token, userInfo: userInfo[0] } });
         });
       } else {
         // 密码错误

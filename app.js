@@ -11,6 +11,7 @@ const db = require('./middleware/connectSQL');
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const upImage = require('./routes/upImage');
+const chat = require('./routes/chat')
 
 const app = express();
 const base_url = '/express/api'
@@ -34,6 +35,7 @@ app.use((req, res, next) => {
 app.use(base_url + '/', indexRouter);
 app.use(base_url + '/user', usersRouter);
 app.use(base_url + '/upImage', upImage);
+app.use(base_url + '/chat', chat);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
