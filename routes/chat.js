@@ -12,7 +12,7 @@ router.post('/addFriendReq', verifyToken, function(req, res, next) {
   req.db.query(checkContactSql, [userId, friendId, friendId, userId], (checkContactErr, checkContactResults) => {
     if (checkContactErr) {
       console.error('Error checking contacts:', checkContactErr);
-      return res.status(500).json({ message: 'Internal Server Error' });
+      return res.status(500).json({ state: 0, message: 'Internal Server Error' });
     }
 
     if (checkContactResults.length > 0) {
@@ -23,13 +23,13 @@ router.post('/addFriendReq', verifyToken, function(req, res, next) {
     req.db.query(checkSenderSql, [userId, friendId, 'Pending'], (checkSenderErr, checkSenderResults) => {
       if (checkSenderErr) {
         console.error('Error checking sender friend request:', checkSenderErr);
-        return res.status(500).json({ message: 'Internal Server Error' });
+        return res.status(500).json({ state: 0, message: 'Internal Server Error' });
       }
 
       req.db.query(checkSenderSql, [friendId, userId, 'Pending'], (checkReceiverErr, checkReceiverResults) => {
         if (checkReceiverErr) {
           console.error('Error checking receiver friend request:', checkReceiverErr);
-          return res.status(500).json({ message: 'Internal Server Error' });
+          return res.status(500).json({ state: 0, message: 'Internal Server Error' });
         }
 
         if (checkSenderResults.length === 0 && checkReceiverResults.length === 0) {
@@ -38,7 +38,7 @@ router.post('/addFriendReq', verifyToken, function(req, res, next) {
           req.db.query(deleteOldRequestsSql, [userId, friendId, friendId, userId], (deleteErr) => {
             if (deleteErr) {
               console.error('Error deleting old friend requests:', deleteErr);
-              return res.status(500).json({ message: 'Internal Server Error' });
+              return res.status(500).json({ state: 0, message: 'Internal Server Error' });
             }
 
             // 添加新的好友请求
@@ -46,7 +46,7 @@ router.post('/addFriendReq', verifyToken, function(req, res, next) {
             req.db.query(insertSql, [userId, friendId, 'Pending'], (insertErr) => {
               if (insertErr) {
                 console.error('Error adding friend request:', insertErr);
-                res.status(500).json({ message: 'Internal Server Error' });
+                res.status(500).json({ state: 0, message: 'Internal Server Error' });
               } else {
                 res.status(200).json({ state: 1, msg: '发送请求成功' });
               }
@@ -105,7 +105,7 @@ router.get('/newReqInfo', verifyToken, async function(req, res, next) {
     res.status(200).json({ state: 1, msg: '获取请求信息成功！', data: { reqInfo, pendingCount } });
   } catch (error) {
     console.error('Error querying AddRequests or fetching user info:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(500).json({ state: 0, message: 'Internal Server Error' });
   }
 });
 
@@ -170,8 +170,36 @@ router.get('/contents', verifyToken, async function(req, res, next) {
     res.status(200).json({ state: 1, msg: '获取联系人信息成功！', data: reqInfo });
   } catch (error) {
     console.error('Error querying AddRequests or fetching user info:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(500).json({ state: 0, message: 'Internal Server Error' });
   }
 });
 
+// 获取历史聊天记录
+router.get('/chatHistory/:friendId', verifyToken, async function(req, res, next) {
+  console.log('req.params')
+  const friendId = req.params.friendId;
+  const userId = req.userId;
+  try {
+    const friendInfo = await new Promise((resolve, reject) => {
+      getUserInfo([friendId], req, (err, userInfo) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(userInfo);
+        }
+      });
+    });
+    res.status(200).json({
+      state: 1,
+      msg: '获取历史聊天记录成功！', 
+      data:
+      {
+        friendInfo: friendInfo[0]
+      } 
+    });
+  } catch(err) {
+    res.status(500).json({ state: 0, message: 'Internal Server Error', err });
+  }
+
+})
 module.exports = router;

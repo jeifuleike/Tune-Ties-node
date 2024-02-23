@@ -1,4 +1,3 @@
-
 const { getUserIdFromToken } = require('../middleware/socketMiddle')
 const db = require('../middleware/connectSQL');
 // 获取用户头像以及用户名
@@ -24,7 +23,6 @@ async function getUserInfoById(userId, socket) {
     });
   });
 }
-
 
 module.exports = function(io) {
   // 匹配池

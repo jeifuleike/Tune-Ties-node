@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const musicListen = require('../socket/musicListen')
+const friendChat = require('../socket/friendChat')
 /**
  * Module dependencies.
  */
@@ -32,6 +33,8 @@ const io = socketIO(server, {
 });
 
 musicListen(io)
+friendChat(io)
+
 /**
  * Listen on provided port, on all network interfaces.
  */
