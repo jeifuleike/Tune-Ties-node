@@ -222,8 +222,9 @@ class ChatRoom {
       // 房间不存在，创建房间并添加用户
       this.rooms.set(roomID, {
         inRoomId: [userId],
-        ids: [userId, friendId],
-        lastMessageId: null
+        ids: [userId, Number(friendId)],
+        lastMessageId: null,
+        historyChat: []
       });
     }
   }
@@ -259,15 +260,8 @@ class ChatRoom {
   }
 
   // 获取好友id
-  getFriendId(userId) {
-    for (const [, room] of this.rooms) {
-      const userIndex = room.inRoomId.indexOf(userId);
-
-      if (userIndex !== -1) {
-        // 用户存在于房间中，返回好友id
-        return room.ids.find(item => item !== userId);
-      }
-    }
+  getFriendId(roomID, userId) {
+    return this.rooms.get(roomID).ids.find(item => item !== userId)
   }
 
   // 获取用户所在的房间id
@@ -281,6 +275,21 @@ class ChatRoom {
       }
     }
   }
+
+  // 存入当前房间聊天记录
+  setHistoryChat(historyChat, roomID) {
+    this.rooms.get(roomID).historyChat = historyChat
+  }
+
+  // 获取某一房间的聊天记录
+  getHistoryChat(roomID) {
+    return this,this.rooms.get(roomID).historyChat
+  }
+
+  pushHistoryChat(msg, roomID) {
+    console.log(roomID, 'roomID')
+    this.rooms.get(roomID).historyChat.push(msg)
+  }
 }
 
 module.exports = function(io) {
@@ -291,10 +300,9 @@ module.exports = function(io) {
   const chatRoom = new ChatRoom()
   // 连接进来的用户
   const connectedUsers = new Map();
-  // 房间内的聊天记录
-  let historyChat = []
 
   matchChatIo.on("connection", async (socket) => {
+
     const handshake = socket.handshake;
     // 从 token 中获取用户 ID 和房间 ID
     const userId = getUserIdFromToken(handshake.query.token);
@@ -335,50 +343,51 @@ module.exports = function(io) {
         roomId = userId + '-' + friendId
       }
 
-      console.log(friendId, 'friendIdfriendIdfriendId')
       chatRoom.addUser(roomId, socket.userId, friendId)
       const friendsInfo = socket.friendChatList.find(item => item.userInfo.userId === Number(friendId))
       socket.join(roomId)
 
       if (friendsInfo) {
-      // 根据数据查询到的最后聊天记录id更新房间对象内的最后聊天记录id
-      chatRoom.changeLastMessage(roomId, friendsInfo.lastChatMessageID)
-      // socket.emit('lastChatMessageID', lastChatMessageID)
-
-      // 初始化聊天记录
-      historyChat = await getHistoryChat(
-        friendsInfo.lastChatMessageID,
-        friendsInfo.userInfo, 
-        {
-          userId: socket.userId,
-          userName: socket.userName,
-          avatar: socket.avatar
-        }
-      )
-      socket.emit('getTxt', {
-        state: 1,
-        data: historyChat
-      })
+        // 根据数据查询到的最后聊天记录id更新房间对象内的最后聊天记录id
+        chatRoom.changeLastMessage(roomId, friendsInfo.lastChatMessageID)
+        // socket.emit('lastChatMessageID', lastChatMessageID)
+  
+        // 初始化聊天记录
+        chatRoom.setHistoryChat(await getHistoryChat(
+          friendsInfo.lastChatMessageID,
+          friendsInfo.userInfo, 
+          {
+            userId: socket.userId,
+            userName: socket.userName,
+            avatar: socket.avatar
+          }
+        ), roomId)
+        socket.emit('getTxt', {
+          state: 1,
+          data: chatRoom.getHistoryChat(roomId)
+        })
       }
     })
 
     socket.on('pushTxt', async(data) => {
-      const friendId = chatRoom.getFriendId(socket.userId)
+      console.log(socket.userId, 'socket.userId')
       const roomID = chatRoom.getRoomId(userId)
+      const friendId = chatRoom.getFriendId(roomID, socket.userId)
       const lastChatMessageID = chatRoom.getLastMessage(roomID)
       // 给对象发送信息
       const nowMessageID = Date.now() + '-' + socket.userId + friendId
-      historyChat.push({
+      chatRoom.pushHistoryChat({
         id: nowMessageID,
         userId: socket.userId,
         avatar: socket.avatar,
         userName: socket.userName,
         txt: data,
         time: Date.now()
-      })
+      }, roomID)
+      console.log(matchChatIo.adapter ,'matchChatIo')
       matchChatIo.to(roomID).emit('getTxt', {
         state: 1,
-        data: historyChat
+        data: chatRoom.getHistoryChat(roomID)
       });
       // 存入数据库的数据
       const sqlData = {
@@ -399,15 +408,16 @@ module.exports = function(io) {
       await socket.upFriendChatList()
       socket.emit('upFriendChatList', socket.friendChatList)
       if (connectedUsers.has(friendId)) {
-        const friendSocket = connectedUsers.get(friendId)
-        friendSocket.emit('upFriendChatList', socket.friendChatList)
+        const friendSocket = connectedUsers.get(friendId)  
         await friendSocket.upFriendChatList()
+        friendSocket.emit('upFriendChatList', friendSocket.friendChatList)
       }
     })
 
     socket.on('leverRoom',() => {
+      const roomID = chatRoom.getRoomId(socket.userId)
+      socket.leave(roomID);
       chatRoom.deleteUser(socket.userId)
-      historyChat = []
     })
 
     socket.on('disconnect', () => {
