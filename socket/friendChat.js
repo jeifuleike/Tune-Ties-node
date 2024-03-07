@@ -1,5 +1,19 @@
 const { getUserIdFromToken } = require('../middleware/socketMiddle')
 const db = require('../middleware/connectSQL');
+const express = require('express');
+const router = express.Router();
+const verifyToken = require('../middleware/adminToken');
+
+// 连接进来的用户
+const connectedUsers = new Map();
+
+// 获取连接到的用户数
+router.get('/connectUsers', verifyToken, (req, res) => {
+  const connectedUsersCount = connectedUsers.size;
+  res.send({ state: 1, msg: '获取在线用户数量成功', data: { connectedUsersCount }});
+});
+
+
 // 获取用户头像以及用户名
 async function getUsersInfoByIds(userIds, socket) {
   // If the userIds array is empty, return an empty array
@@ -292,14 +306,13 @@ class ChatRoom {
   }
 }
 
-module.exports = function(io) {
+const chatSocket = function(io) {
 
   // 好友聊天
   const matchChatIo = io.of("/friendChats");
 
   const chatRoom = new ChatRoom()
-  // 连接进来的用户
-  const connectedUsers = new Map();
+
 
   matchChatIo.on("connection", async (socket) => {
 
@@ -425,4 +438,9 @@ module.exports = function(io) {
       chatRoom.deleteUser(socket.userId)
     });
   })
+}
+
+module.exports = {
+  chatSocket,
+  router
 }

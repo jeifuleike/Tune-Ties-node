@@ -12,10 +12,14 @@ const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const upImage = require('./routes/upImage');
 const chat = require('./routes/chat')
+const amidUser = require('./routes/amidUser')
+const home = require('./routes/amidHome')
+const { router } = require('./socket/friendChat')
+const { musicRouter } = require('./socket/musicListen')
 
 const app = express();
 const base_url = '/express/api'
-
+const amid_base_url = '/express/api/amid'
 // 使用处理日志中间件
 app.use(logger('dev'));
 
@@ -36,6 +40,10 @@ app.use(base_url + '/', indexRouter);
 app.use(base_url + '/user', usersRouter);
 app.use(base_url + '/upImage', upImage);
 app.use(base_url + '/chat', chat);
+app.use(amid_base_url + '/user', amidUser);
+app.use(amid_base_url + '/home', home);
+app.use(amid_base_url + '/socket', router);
+app.use(amid_base_url + '/socket', musicRouter)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

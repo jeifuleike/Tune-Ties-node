@@ -18,13 +18,16 @@ function addUserInfo(req, data) {
 // 获取用户信息
 router.get('/userInfo', verifyToken, function(req, res, next) {
   const userId = req.userId;
+  const userName = req.userName;
+
   // 查询数据库以获取用户信息
   getUserInfo(userId, req, (err, userInfo) => {
-    if (userInfo) {
+    if (userInfo.length > 0) {
       res.status(200).json({ state: 1, msg: '获取用户信息成功！', data: userInfo[0] });
+
     } else {
       // 用户信息不存在
-      res.status(404).json({ state: 0, msg: '未找到该用户', data: null });
+      res.status(401).json({ state: 0, msg: '未找到该用户', data: null });
     }
   });
 });

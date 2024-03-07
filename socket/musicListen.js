@@ -1,5 +1,27 @@
 const { getUserIdFromToken } = require('../middleware/socketMiddle')
 const db = require('../middleware/connectSQL');
+const express = require('express');
+const musicRouter = express.Router();
+const verifyToken = require('../middleware/adminToken');
+
+// 匹配池
+const roomMap = {}
+// 连接进来的用户
+const connectedUsers = new Map();
+
+// 最大是socket对象
+let matchChatIo
+// 获取连接到的用户数
+musicRouter.get('/musicUsers', verifyToken, (req, res) => {
+  const keys = Object.keys(roomMap)
+  let matchingCounts = 0
+  keys.forEach(item => {
+    matchingCounts += roomMap[item].size
+  })
+  const usersCount = connectedUsers.size;
+  res.send({ state: 1, msg: '获取在线用户数量成功', data: { usersCount, matchingCounts }});
+});
+
 // 获取用户头像以及用户名
 async function getUserInfoById(userId, socket) {
   const getUsersInfoQuery = 'SELECT userId, userName, avatar FROM usersInfo WHERE userId = ?';
@@ -24,11 +46,7 @@ async function getUserInfoById(userId, socket) {
   });
 }
 
-module.exports = function(io) {
-  // 匹配池
-  const roomMap = {}
-  // 连接进来的用户
-  const connectedUsers = new Map();
+const musicSocket = function(io) {
 
   // 辅助函数：获取房间内的已连接用户
   function connectedUsersInRoom(roomName) {
@@ -94,7 +112,6 @@ module.exports = function(io) {
 
     socket.join(roomName);
     socket.on('pushTxt', (data) => {
-      console.log('接收到了信息')
       // 在这里处理聊天消息，比如将消息存储到数据库，然后广播给房间内的其他用户
       matchChatIo.to(roomName).emit('getTxt', {
         state: 1,
@@ -138,7 +155,7 @@ module.exports = function(io) {
   }
 
   // 匹配在线聊天
-  const matchChatIo = io.of("/matchChats");
+  matchChatIo = io.of("/matchChats");
 
   matchChatIo.on("connection", async (socket) => {
     const handshake = socket.handshake;
@@ -175,3 +192,53 @@ module.exports = function(io) {
     }
   });
 };
+
+// 信息详情，获取具体用户列表
+musicRouter.get('/musicUsersList', verifyToken, (req, res) => {
+  const matchingArr = []
+  const chatRoomArr = []
+  const matchingKeys = Object.keys(roomMap)
+  matchingKeys.forEach(key => {
+    const usersInfo = []
+    roomMap[key].forEach(item => {
+      const socket = connectedUsers.get(item)
+      const { userId, userName, avatar } = socket
+      usersInfo.push({
+        userId,
+        userName,
+        avatar
+      })
+    })
+    matchingArr.push({
+      roomId: key,
+      usersInfo
+    })
+  })
+
+  const chatRoomKeys = Array.from(matchChatIo.adapter.rooms.keys());
+  chatRoomKeys.forEach(key => {
+    if (key.startsWith('chatRoom')) {
+      const roomId = key.split('-')[1]
+      const usersInfo = []
+      matchChatIo.adapter.rooms.get(key).forEach(id => {
+        const socket = matchChatIo.sockets.get(id)
+        const { userId, userName, avatar } = socket
+        usersInfo.push({
+          userId,
+          userName,
+          avatar
+        })
+      })
+      chatRoomArr.push({
+        roomId,
+        usersInfo
+      })
+    }
+  })
+  res.send({ state: 1, msg: '获取音乐匹配用户信息成功', data: { matchingArr, chatRoomArr }});
+});
+
+module.exports = {
+  musicSocket,
+  musicRouter
+}
